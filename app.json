@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "match-game",
-    "slug": "match-game",
+    "name": "Lotif",
+    "slug": "lotif",
+    "scheme": "lotif",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "matchgame",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
