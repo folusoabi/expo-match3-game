@@ -9,7 +9,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-canvas">
       <View className="px-5 pt-4 pb-2">
-        <Text className="text-white text-2xl font-bold">Lotif</Text>
+        <Text className="text-white text-2xl font-bold">Lotif Editor</Text>
         <Text className="text-neutral-400 mt-1">Pick a template to start a marketing video</Text>
       </View>
 

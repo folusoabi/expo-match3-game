@@ -10,6 +10,7 @@ import { exportSceneToVideo } from '@/features/video-export/exportScene';
 import { cloneScene, type Scene } from '@/features/video-export/scene';
 import { getTemplateById } from '@/features/video-export/templates';
 import { LayerControls } from '@/components/LayerControls';
+import { getVideoInfo } from '../../../modules/video-frame-decoder';
 
 const screenWidth = Dimensions.get('window').width;
 const PREVIEW_WIDTH = screenWidth - 32;
@@ -59,6 +60,40 @@ export default function EditorScreen() {
     );
   }
 
+  async function pickVideoForLayer(layerId: string) {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      quality: 1,
+    });
+    if (result.canceled) return;
+
+    const uri = result.assets[0].uri;
+
+    // Default to using the first N seconds of the source clip, clamped to
+    // however long it actually is.
+    let trimEnd = 3;
+    try {
+      const info = await getVideoInfo(uri);
+      trimEnd = Math.min(3, info.durationSeconds);
+    } catch (err) {
+      console.warn('Could not read video info, using default trim', err);
+    }
+
+    setScene((prev) =>
+      prev
+        ? {
+            ...prev,
+            layers: prev.layers.map((l) =>
+              l.id === layerId && l.type === 'video' ? { ...l, uri, trimStart: 0, trimEnd } : l
+            ),
+          }
+        : prev
+    );
+  }
+
   async function handleExport() {
     if (!scene) return;
     setExporting(true);
@@ -81,6 +116,7 @@ export default function EditorScreen() {
   }
 
   const imageLayers = scene.layers.filter((l) => l.type === 'image');
+  const videoLayers = scene.layers.filter((l) => l.type === 'video');
 
   return (
     <SafeAreaView className="flex-1 bg-canvas">
@@ -96,6 +132,18 @@ export default function EditorScreen() {
           <AnimatedPreview scene={scene} displayWidth={PREVIEW_WIDTH} displayHeight={previewHeight} />
         </View>
 
+        {videoLayers.map((layer) => (
+          <Pressable
+            key={layer.id}
+            onPress={() => pickVideoForLayer(layer.id)}
+            className="bg-surface rounded-xl px-4 py-3 mb-3 items-center"
+          >
+            <Text className="text-white font-medium">
+              {layer.uri ? 'Change video' : 'Choose video'} for {layer.id}
+            </Text>
+          </Pressable>
+        ))}
+
         {imageLayers.map((layer) => (
           <Pressable
             key={layer.id}
@@ -108,9 +156,9 @@ export default function EditorScreen() {
           </Pressable>
         ))}
 
-        <Text className="text-white font-semibold mt-2 mb-2">Text layers</Text>
+        <Text className="text-white font-semibold mt-2 mb-2">Text & shape layers</Text>
         {scene.layers
-          .filter((l) => l.type === 'text')
+          .filter((l) => l.type === 'text' || l.type === 'shape')
           .map((layer) => (
             <LayerControls
               key={layer.id}

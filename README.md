@@ -1,6 +1,8 @@
 # Welcome to your Expo app 👋
 
-npm install @shopify/react-native-skia @azzapp/react-native-skia-video expo-file-system expo-image-picker expo-media-library
+npm install @shopify/react-native-skia expo-file-system expo-image-picker expo-media-library
+
+npx create-expo-module@latest --local
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 

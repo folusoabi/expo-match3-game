@@ -34,13 +34,36 @@ export function LayerControls({ layer, onChange }: Props) {
     );
   }
 
-  // Image layers are edited via the "Choose photo" button on the layer
-  // itself in the editor screen, so there's nothing extra to show here yet.
+  if (layer.type === 'shape') {
+    return (
+      <View className="bg-surface rounded-xl p-3 mb-3">
+        <Text className="text-neutral-400 text-xs mb-2">
+          {layer.id} ({layer.shape})
+        </Text>
+        <Text className="text-neutral-500 text-xs mb-2">Fill color</Text>
+        <View className="flex-row gap-2">
+          {SWATCHES.map((color) => (
+            <Pressable
+              key={color}
+              onPress={() => onChange({ ...layer, fill: color })}
+              style={{ backgroundColor: color }}
+              className={`w-8 h-8 rounded-full ${layer.fill === color ? 'border-2 border-white' : ''}`}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  // Image and video layers are edited via the "Choose photo"/"Choose
+  // video" buttons on the layer itself in the editor screen.
   return (
     <View className="bg-surface rounded-xl p-3 mb-3">
-      <Text className="text-neutral-400 text-xs">{layer.id} (image layer)</Text>
+      <Text className="text-neutral-400 text-xs">
+        {layer.id} ({layer.type} layer)
+      </Text>
       <Text className="text-neutral-500 text-xs mt-1">
-        {layer.uri ? 'Photo selected' : 'Using placeholder — tap the image on the canvas to replace'}
+        {layer.uri ? 'Media selected' : 'Using placeholder — pick media above'}
       </Text>
     </View>
   );
