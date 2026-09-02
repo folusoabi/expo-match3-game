@@ -1,12 +1,12 @@
-import type { Competitor, MatchResult, SportEvent, SportId } from "@/types";
+import type { Competitor, Match, MatchResult, SportId } from "@/types";
 import { seededRng, randInt, weightedBool } from "@/utils/seededRandom";
-import { LEAGUES, TEAM_NAMES, PLAYER_NAMES } from "./reference";
+import { COMPETITIONS, TEAM_NAMES, PLAYER_NAMES } from "./reference";
 
-const DATASET_FROM = "2024-01-01";
-const DATASET_TO = "2026-08-24";
+export const DATASET_FROM = "2020-01-01";
+export const TODAY = "2026-08-31"; // "present day" the app treats as the edge of history
+const ROUND_CADENCE_DAYS = 10;
 
 function strengthOf(name: string): number {
-  // Deterministic 0.30–0.85 "quality" rating derived from the name itself.
   const rng = seededRng(`strength:${name}`);
   return 0.3 + rng() * 0.55;
 }
@@ -28,44 +28,35 @@ function pushForm(log: Record<string, ("W" | "L" | "D")[]>, id: string, r: "W" |
   if (arr.length > 5) arr.shift();
 }
 
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function datesBetween(from: string, to: string, stepDays: number): string[] {
   const out: string[] = [];
-  const start = new Date(from).getTime();
-  const end = new Date(to).getTime();
-  for (let t = start; t <= end; t += stepDays * 86400000) {
-    out.push(new Date(t).toISOString().slice(0, 10));
+  let cursor = from;
+  while (cursor <= to) {
+    out.push(cursor);
+    cursor = addDays(cursor, stepDays);
   }
   return out;
 }
 
-function buildTeamRoster(leagueId: string): Competitor[] {
-  const names = TEAM_NAMES[leagueId] ?? [];
+function buildRoster(competitionId: string, sportId: SportId): Competitor[] {
+  const names = sportId === "tennis" ? PLAYER_NAMES[competitionId] ?? [] : TEAM_NAMES[competitionId] ?? [];
   return names.map((name) => ({
-    id: `${leagueId}-${name.replace(/\s+/g, "_")}`,
+    id: `${competitionId}-${name.replace(/[\s.&]+/g, "_")}`,
     name,
-    shortName: name.split(" ").slice(-1)[0],
+    shortName: sportId === "tennis" ? name : name.split(" ").slice(-1)[0],
     form: [],
   }));
 }
 
-function buildPlayerRoster(leagueId: string): Competitor[] {
-  const names = PLAYER_NAMES[leagueId] ?? [];
-  return names.map((name) => ({
-    id: `${leagueId}-${name.replace(/[\s.]+/g, "_")}`,
-    name,
-    shortName: name,
-    form: [],
-  }));
-}
-
-function generateFootballOrBallResult(
-  sportId: SportId,
-  homeStrength: number,
-  awayStrength: number,
-  rng: () => number
-): MatchResult {
+function generateResult(sportId: SportId, homeStrength: number, awayStrength: number, rng: () => number): MatchResult {
   if (sportId === "football") {
-    const homeLambda = 1.1 + homeStrength * 1.6 + 0.25; // home advantage
+    const homeLambda = 1.1 + homeStrength * 1.6 + 0.25;
     const awayLambda = 1.0 + awayStrength * 1.5;
     return { homeScore: poissonSample(rng, homeLambda), awayScore: poissonSample(rng, awayLambda) };
   }
@@ -75,22 +66,20 @@ function generateFootballOrBallResult(
     const awayScore = base + Math.round(awayStrength * 26) + randInt(rng, -8, 8);
     return { homeScore, awayScore };
   }
-  // hockey
-  const homeLambda = 2.3 + homeStrength * 1.4 + 0.15;
-  const awayLambda = 2.1 + awayStrength * 1.3;
-  return { homeScore: poissonSample(rng, homeLambda), awayScore: poissonSample(rng, awayLambda) };
-}
-
-function generateTennisResult(strengthA: number, strengthB: number, rng: () => number): MatchResult {
-  const pA = 0.5 + (strengthA - strengthB) * 0.6;
+  if (sportId === "hockey") {
+    const homeLambda = 2.3 + homeStrength * 1.4 + 0.15;
+    const awayLambda = 2.1 + awayStrength * 1.3;
+    return { homeScore: poissonSample(rng, homeLambda), awayScore: poissonSample(rng, awayLambda) };
+  }
+  // tennis
+  const pA = 0.5 + (homeStrength - awayStrength) * 0.6;
   const sets: { home: number; away: number }[] = [];
   let setsA = 0;
   let setsB = 0;
-  const target = 2; // best of 3
-  while (setsA < target && setsB < target) {
+  while (setsA < 2 && setsB < 2) {
     const aWinsSet = weightedBool(rng, Math.min(0.92, Math.max(0.08, pA)));
-    let gamesWinner = randInt(rng, 6, 7);
-    let gamesLoser = gamesWinner === 7 ? 6 : randInt(rng, 0, 4);
+    const gamesWinner = randInt(rng, 6, 7);
+    const gamesLoser = gamesWinner === 7 ? 6 : randInt(rng, 0, 4);
     if (aWinsSet) {
       sets.push({ home: gamesWinner, away: gamesLoser });
       setsA++;
@@ -103,28 +92,38 @@ function generateTennisResult(strengthA: number, strengthB: number, rng: () => n
   return { homeScore: setsA, awayScore: setsB, sets, totalGames };
 }
 
-let cache: Map<string, SportEvent[]> | null = null;
+let cache: Map<string, Match[]> | null = null;
+let dateIndex: Map<string, Match[]> | null = null;
 
-function buildAll(): Map<string, SportEvent[]> {
-  const map = new Map<string, SportEvent[]>();
+function ensureDateIndex(): Map<string, Match[]> {
+  if (dateIndex) return dateIndex;
+  dateIndex = new Map();
+  for (const m of getAllMatches()) {
+    const arr = dateIndex.get(m.date) ?? [];
+    arr.push(m);
+    dateIndex.set(m.date, arr);
+  }
+  return dateIndex;
+}
 
-  for (const league of LEAGUES) {
-    const isTennis = league.sportId === "tennis";
-    const roster = isTennis ? buildPlayerRoster(league.id) : buildTeamRoster(league.id);
-    if (roster.length < 2) continue;
+function buildAll(): Map<string, Match[]> {
+  const map = new Map<string, Match[]>();
+
+  COMPETITIONS.forEach((competition, competitionIndex) => {
+    const roster = buildRoster(competition.id, competition.sportId);
+    if (roster.length < 2) return;
 
     const strengths: Record<string, number> = {};
     for (const c of roster) strengths[c.id] = strengthOf(c.id);
 
     const formLog: Record<string, ("W" | "L" | "D")[]> = {};
-    const stepDays = isTennis ? 7 : 7;
-    const rounds = datesBetween(DATASET_FROM, DATASET_TO, stepDays);
-    const events: SportEvent[] = [];
+    const start = addDays(DATASET_FROM, competitionIndex % ROUND_CADENCE_DAYS);
+    const rounds = datesBetween(start, TODAY, ROUND_CADENCE_DAYS);
+    const matches: Match[] = [];
 
     rounds.forEach((date, roundIdx) => {
       const n = roster.length;
-      const matchesThisRound = isTennis ? Math.min(4, Math.floor(n / 2)) : Math.floor(n / 2);
-      // Rotate roster order deterministically per round to vary pairings (like a round-robin schedule).
+      const matchesThisRound = Math.floor(n / 2);
       const rotated = roster.slice(roundIdx % n).concat(roster.slice(0, roundIdx % n));
 
       for (let i = 0; i < matchesThisRound; i++) {
@@ -132,14 +131,11 @@ function buildAll(): Map<string, SportEvent[]> {
         const away = rotated[i * 2 + 1];
         if (!home || !away || home.id === away.id) continue;
 
-        const eventId = `${league.id}-${date}-${home.id}-${away.id}`;
-        const rng = seededRng(eventId);
+        const matchId = `${competition.id}-${date}-${home.id}-${away.id}`;
+        const rng = seededRng(matchId);
         const hs = strengths[home.id];
         const as = strengths[away.id];
-
-        const result = isTennis
-          ? generateTennisResult(hs, as, rng)
-          : generateFootballOrBallResult(league.sportId, hs, as, rng);
+        const result = generateResult(competition.sportId, hs, as, rng);
 
         const homeForm = (formLog[home.id] ?? []).slice();
         const awayForm = (formLog[away.id] ?? []).slice();
@@ -159,43 +155,117 @@ function buildAll(): Map<string, SportEvent[]> {
         pushForm(formLog, home.id, homeOutcome);
         pushForm(formLog, away.id, awayOutcome);
 
-        events.push({
-          id: eventId,
-          sportId: league.sportId,
-          leagueId: league.id,
+        matches.push({
+          id: matchId,
+          sportId: competition.sportId,
+          competitionId: competition.id,
           date,
           home: { ...home, form: homeForm },
           away: { ...away, form: awayForm },
-          status: "completed",
           result,
           isHomeFavourite: hs + 0.05 >= as,
         });
       }
     });
 
-    map.set(league.id, events);
-  }
+    map.set(competition.id, matches);
+  });
 
   return map;
 }
 
-function ensureCache(): Map<string, SportEvent[]> {
+function ensureCache(): Map<string, Match[]> {
   if (!cache) cache = buildAll();
   return cache;
 }
 
-export function getLeagueEvents(leagueId: string): SportEvent[] {
-  return ensureCache().get(leagueId) ?? [];
+export function getCompetitionMatches(competitionId: string): Match[] {
+  return ensureCache().get(competitionId) ?? [];
 }
 
-export function getAllEvents(): SportEvent[] {
+export function getAllMatches(): Match[] {
   return Array.from(ensureCache().values()).flat();
 }
 
-export function getDatasetRange() {
-  return { from: DATASET_FROM, to: DATASET_TO };
+export function getMatchById(id: string): Match | undefined {
+  for (const [cid, matches] of ensureCache()) {
+    if (id.startsWith(`${cid}-`)) {
+      const found = matches.find((m) => m.id === id);
+      if (found) return found;
+    }
+  }
+  return undefined;
 }
 
-export function getEventById(id: string): SportEvent | undefined {
-  return getAllEvents().find((e) => e.id === id);
+export function getMatchesForDate(date: string, sportId?: SportId): Match[] {
+  const matches = ensureDateIndex().get(date) ?? [];
+  return sportId ? matches.filter((m) => m.sportId === sportId) : matches;
+}
+
+export function getMatchesForCompetitionAndDate(competitionId: string, date: string): Match[] {
+  return getCompetitionMatches(competitionId).filter((m) => m.date === date);
+}
+
+/** Dates within a given year+month (1-12) that have at least one match for a competition. */
+export function getMatchDatesInMonth(competitionId: string, year: number, month: number): string[] {
+  const prefix = `${year}-${String(month).padStart(2, "0")}`;
+  const set = new Set<string>();
+  for (const m of getCompetitionMatches(competitionId)) {
+    if (m.date.startsWith(prefix)) set.add(m.date);
+  }
+  return Array.from(set).sort();
+}
+
+export function getDatasetRange() {
+  return { from: DATASET_FROM, to: TODAY };
+}
+
+export function getDatesWithMatchesInRange(from: string, to: string, sportId?: SportId): Set<string> {
+  const set = new Set<string>();
+  const idx = ensureDateIndex();
+  for (const [date, matches] of idx) {
+    if (date < from || date > to) continue;
+    if (!sportId || matches.some((m) => m.sportId === sportId)) set.add(date);
+  }
+  return set;
+}
+
+export interface TeamRef {
+  id: string;
+  name: string;
+  shortName: string;
+  competitionId: string;
+  sportId: SportId;
+}
+
+let teamIndex: Map<string, TeamRef> | null = null;
+
+function ensureTeamIndex(): Map<string, TeamRef> {
+  if (teamIndex) return teamIndex;
+  teamIndex = new Map();
+  for (const m of getAllMatches()) {
+    if (!teamIndex.has(m.home.id)) {
+      teamIndex.set(m.home.id, { id: m.home.id, name: m.home.name, shortName: m.home.shortName, competitionId: m.competitionId, sportId: m.sportId });
+    }
+    if (!teamIndex.has(m.away.id)) {
+      teamIndex.set(m.away.id, { id: m.away.id, name: m.away.name, shortName: m.away.shortName, competitionId: m.competitionId, sportId: m.sportId });
+    }
+  }
+  return teamIndex;
+}
+
+export function findTeamById(teamId: string): TeamRef | undefined {
+  return ensureTeamIndex().get(teamId);
+}
+
+export function searchTeams(query: string): TeamRef[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return Array.from(ensureTeamIndex().values()).filter((t) => t.name.toLowerCase().includes(q));
+}
+
+export function getTeamMatches(teamId: string): Match[] {
+  return getAllMatches()
+    .filter((m) => m.home.id === teamId || m.away.id === teamId)
+    .sort((a, b) => b.date.localeCompare(a.date));
 }

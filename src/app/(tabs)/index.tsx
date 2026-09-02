@@ -1,131 +1,153 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { View, ScrollView, Pressable } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, MonoText } from "@/components/ui/Text";
 import { Card } from "@/components/ui/Card";
-import { StatCard } from "@/components/ui/StatCard";
-import { Button } from "@/components/ui/Button";
+import { DatePager } from "@/components/ui/DatePager";
 import { EmptyState } from "@/components/ui/States";
-import { BacktestResultRow, StrategyRow } from "@/components/cards";
+import { CompetitionSection } from "@/components/matches";
 import { colors } from "@/constants/theme";
-import { formatCurrency, formatPercent } from "@/utils/format";
-import { useBacktestStore } from "@/state/BacktestProvider";
-import { LEAGUES } from "@/data/mock/reference";
+import { formatCurrency, formatDate } from "@/utils/format";
+import { useApp } from "@/state/AppProvider";
+import { COMPETITIONS } from "@/data/mock/reference";
+import { getMatchesForDate, getDatesWithMatchesInRange, DATASET_FROM, TODAY } from "@/data/mock/eventGenerator";
 
-export default function DashboardScreen() {
-  const { recentResults, strategies, hydrated } = useBacktestStore();
+export default function HomeScreen() {
+  const { balance, exploreDate, setExploreDate } = useApp();
+  const [date, setDate] = useState(exploreDate);
 
-  const totals = useMemo(() => {
-    const totalBacktests = recentResults.length;
-    const betsTested = recentResults.reduce((s, r) => s + r.totalBets, 0);
-    const totalStaked = recentResults.reduce((s, r) => s + r.totalStaked, 0);
-    const profit = recentResults.reduce((s, r) => s + r.profit, 0);
-    const roi = totalStaked > 0 ? profit / totalStaked : 0;
-    return { totalBacktests, betsTested, profit, roi };
-  }, [recentResults]);
+  const profit = balance - 5000;
+  const positive = profit >= 0;
 
-  if (!hydrated) return null;
+  const matchesToday = useMemo(() => getMatchesForDate(date), [date]);
+  const grouped = useMemo(() => {
+    const map = new Map<string, typeof matchesToday>();
+    for (const m of matchesToday) {
+      const arr = map.get(m.competitionId) ?? [];
+      arr.push(m);
+      map.set(m.competitionId, arr);
+    }
+    return Array.from(map.entries())
+      .map(([id, matches]) => ({ competition: COMPETITIONS.find((c) => c.id === id)!, matches }))
+      .filter((g) => g.competition);
+  }, [matchesToday]);
+
+  const datesWithMatches = useMemo(
+    () => getDatesWithMatchesInRange(addDays(date, -10), addDays(date, 10)),
+    [date]
+  );
+
+  function selectDate(d: string) {
+    setDate(d);
+    setExploreDate(d);
+  }
+
+  const years = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-canvas">
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <View className="flex-row items-center justify-between px-5 pt-3 pb-1">
-          <View>
-            <Text className="text-text-tertiary text-[12.5px] font-sans-medium">Edge Terminal</Text>
-            <Text className="font-sans-bold text-[24px] text-text-primary mt-0.5">Dashboard</Text>
-          </View>
-          <View className="w-10 h-10 rounded-full bg-surfaceRaised border border-border items-center justify-center">
-            <Ionicons name="pulse-outline" size={18} color={colors.edge} />
-          </View>
-        </View>
-
-        <View className="px-5 mt-5">
-          <View className="flex-row gap-3">
-            <StatCard label="Backtests run" value={String(totals.totalBacktests)} className="flex-1" />
-            <StatCard label="Bets tested" value={totals.betsTested.toLocaleString()} className="flex-1" />
-          </View>
-          <View className="flex-row gap-3 mt-3">
-            <StatCard
-              label="Overall ROI"
-              value={formatPercent(totals.roi, { showSign: true })}
-              tone={totals.roi >= 0 ? "profit" : "loss"}
-              className="flex-1"
-            />
-            <StatCard
-              label="Total profit"
-              value={formatCurrency(totals.profit, { showSign: true })}
-              tone={totals.profit >= 0 ? "profit" : "loss"}
-              className="flex-1"
-            />
+        <View className="flex-row items-center justify-between px-5 pt-2 pb-3">
+          <Text className="font-sans-bold text-[22px] text-text-primary">Rewind</Text>
+          <View className="flex-row items-center gap-2">
+            <Pressable
+              onPress={() => router.push("/search")}
+              className="w-10 h-10 rounded-full bg-surface border border-border items-center justify-center"
+            >
+              <Ionicons name="search" size={18} color={colors.textPrimary} />
+            </Pressable>
+            <Pressable
+              onPress={() => router.push("/(tabs)/profile")}
+              className="w-10 h-10 rounded-full bg-edge items-center justify-center"
+            >
+              <Text className="text-white font-sans-bold text-[14px]">GM</Text>
+            </Pressable>
           </View>
         </View>
 
-        <View className="px-5 mt-5">
-          <Button
-            label="Create Backtest"
-            icon="add-circle"
-            fullWidth
-            onPress={() => router.push("/(tabs)/backtests/builder")}
-          />
+        <View className="px-5">
+          <Card raised className="p-5">
+            <Text className="text-text-secondary text-[12.5px] font-sans-medium">Virtual balance</Text>
+            <MonoText className="text-[32px] font-mono-bold text-text-primary mt-1">{formatCurrency(balance)}</MonoText>
+            <View className="flex-row items-center gap-1.5 mt-2">
+              <Ionicons name={positive ? "trending-up" : "trending-down"} size={14} color={positive ? colors.profit : colors.loss} />
+              <Text className={`text-[13px] font-sans-semibold ${positive ? "text-profit" : "text-loss"}`}>
+                {positive ? "+" : ""}
+                {formatCurrency(profit)}
+              </Text>
+              <Text className="text-text-tertiary text-[12px]">since $5,000 start</Text>
+            </View>
+          </Card>
         </View>
 
-        <View className="px-5 mt-7">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="font-sans-semibold text-[16px]">Recent backtests</Text>
-            {recentResults.length > 0 ? (
-              <Pressable onPress={() => router.push("/(tabs)/backtests")}>
-                <Text className="text-edge text-[13px] font-sans-medium">See all</Text>
-              </Pressable>
-            ) : null}
+        <View className="px-5 mt-6">
+          <Text className="font-sans-semibold text-[16px] mb-1">Continue Simulation</Text>
+          <Text className="text-text-secondary text-[13px] mb-3">You're exploring {formatDate(date)}</Text>
+        </View>
+
+        <View className="mb-2">
+          <View className="px-5 mb-2 flex-row items-center justify-between">
+            <Text className="text-text-secondary text-[12.5px] font-sans-medium">Explore history</Text>
           </View>
-          {recentResults.length === 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 8 }}>
+            {years.map((y) => {
+              const active = date.startsWith(String(y));
+              return (
+                <Pressable
+                  key={y}
+                  onPress={() => selectDate(nearestDateInYear(date, y))}
+                  className={`rounded-pill px-4 py-2 border ${active ? "bg-text-primary border-text-primary" : "bg-surface border-border"}`}
+                >
+                  <Text className={`text-[13px] font-sans-bold ${active ? "text-white" : "text-text-secondary"}`}>{y}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        <View className="mt-4 mb-3">
+          <DatePager selected={date} onSelect={selectDate} datesWithMatches={datesWithMatches} />
+        </View>
+
+        <View className="px-5">
+          <Text className="font-sans-semibold text-[16px] mb-3">Today in history</Text>
+          {grouped.length === 0 ? (
             <Card>
               <EmptyState
-                icon="analytics-outline"
-                title="No backtests yet"
-                message="Configure a strategy and run it against historical data to see results here."
-                actionLabel="Create Backtest"
-                onAction={() => router.push("/(tabs)/backtests/builder")}
+                icon="calendar-outline"
+                title="No matches this day"
+                message="Try a nearby date — the dots on the date strip show days with fixtures."
               />
             </Card>
           ) : (
-            recentResults.slice(0, 4).map((r) => {
-              const strategy = strategies.find((s) => s.config.id === r.strategyId);
-              const league = strategy ? LEAGUES.find((l) => l.id === strategy.config.leagueId) : undefined;
-              return (
-                <BacktestResultRow
-                  key={r.id}
-                  result={r}
-                  title={strategy?.config.name ?? league?.name ?? "Backtest"}
-                  onPress={() => router.push(`/(tabs)/backtests/results/${r.id}`)}
-                />
-              );
-            })
-          )}
-        </View>
-
-        <View className="px-5 mt-3">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="font-sans-semibold text-[16px]">Saved strategies</Text>
-            {strategies.length > 0 ? (
-              <Pressable onPress={() => router.push("/(tabs)/strategies")}>
-                <Text className="text-edge text-[13px] font-sans-medium">See all</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          {strategies.length === 0 ? (
-            <Card>
-              <EmptyState icon="bookmark-outline" title="No saved strategies" message="Save a backtest configuration to quickly rerun it later." />
-            </Card>
-          ) : (
-            strategies.slice(0, 3).map((s) => (
-              <StrategyRow key={s.config.id} strategy={s} onPress={() => router.push(`/(tabs)/strategies/${s.config.id}`)} />
+            grouped.map((g) => (
+              <CompetitionSection
+                key={g.competition.id}
+                competition={g.competition}
+                matches={g.matches}
+                onSelectMatch={(m) => router.push(`/match/${m.id}`)}
+              />
             ))
           )}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  const clamped = d.toISOString().slice(0, 10);
+  return clamped < DATASET_FROM ? DATASET_FROM : clamped > TODAY ? TODAY : clamped;
+}
+
+function nearestDateInYear(currentDate: string, year: number): string {
+  const [, m, d] = currentDate.split("-");
+  const candidate = `${year}-${m}-${d}`;
+  if (candidate < DATASET_FROM) return DATASET_FROM;
+  if (candidate > TODAY) return TODAY;
+  return candidate;
 }

@@ -36,11 +36,11 @@ export function Button({
       : "bg-transparent";
   const textClass =
     variant === "primary"
-      ? "text-canvas font-sans-semibold"
+      ? "text-white font-sans-semibold"
       : variant === "danger"
       ? "text-loss font-sans-semibold"
       : "text-text-primary font-sans-semibold";
-  const iconColor = variant === "primary" ? colors.canvas : variant === "danger" ? colors.loss : colors.textPrimary;
+  const iconColor = variant === "primary" ? "#FFFFFF" : variant === "danger" ? colors.loss : colors.textPrimary;
 
   return (
     <Pressable

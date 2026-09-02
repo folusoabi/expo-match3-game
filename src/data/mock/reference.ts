@@ -1,75 +1,99 @@
-import type { League, Sport, SportId } from "@/types";
+import type { Competition, Sport, SportId } from "@/types";
 
 export const SPORTS: Sport[] = [
-  { id: "football", name: "Football", icon: "football", color: "football" },
-  { id: "basketball", name: "Basketball", icon: "basketball", color: "basketball" },
-  { id: "hockey", name: "Hockey", icon: "snow", color: "hockey" },
-  { id: "tennis", name: "Tennis", icon: "tennisball", color: "tennis" },
+  { id: "football", name: "Football", icon: "football" },
+  { id: "basketball", name: "Basketball", icon: "basketball" },
+  { id: "hockey", name: "Hockey", icon: "snow" },
+  { id: "tennis", name: "Tennis", icon: "tennisball" },
 ];
 
-export const LEAGUES: League[] = [
-  // Football
-  { id: "fb-metro", sportId: "football", name: "Metropolitan League", country: "England", shortName: "MET" },
-  { id: "fb-iberia", sportId: "football", name: "Iberian Liga", country: "Spain", shortName: "IBR" },
-  { id: "fb-alpine", sportId: "football", name: "Alpine Serie", country: "Italy", shortName: "ALP" },
-  // Basketball
-  { id: "bb-national", sportId: "basketball", name: "National Hoops Association", country: "USA", shortName: "NHA" },
-  { id: "bb-continental", sportId: "basketball", name: "Continental Basketball League", country: "Europe", shortName: "CBL" },
-  // Hockey
-  { id: "hk-national", sportId: "hockey", name: "National Ice League", country: "USA/Canada", shortName: "NIL" },
-  { id: "hk-continental", sportId: "hockey", name: "Continental Hockey Circuit", country: "Europe", shortName: "CHC" },
-  // Tennis
-  { id: "tn-mens", sportId: "tennis", name: "Grand Circuit — Men's Tour", country: "World", shortName: "GCM" },
-  { id: "tn-womens", sportId: "tennis", name: "Grand Circuit — Women's Tour", country: "World", shortName: "GCW" },
+// Real, well-known league/club names are used as flavor text for this local
+// dummy dataset (no logos, no live data, no claim of official affiliation).
+// Individual tennis players use fictional names — see PLAYER_NAMES below —
+// since attaching years of fabricated match outcomes to real athletes isn't
+// something we do even in a demo.
+export const COMPETITIONS: Competition[] = [
+  { id: "epl", sportId: "football", name: "Premier League", country: "England", tier: 1 },
+  { id: "champ", sportId: "football", name: "Championship", country: "England", tier: 2 },
+  { id: "l1", sportId: "football", name: "League One", country: "England", tier: 3 },
+  { id: "laliga", sportId: "football", name: "La Liga", country: "Spain", tier: 1 },
+  { id: "laliga2", sportId: "football", name: "LaLiga 2", country: "Spain", tier: 2 },
+  { id: "bundesliga", sportId: "football", name: "Bundesliga", country: "Germany", tier: 1 },
+
+  { id: "nba", sportId: "basketball", name: "NBA", country: "USA", tier: 1 },
+  { id: "euroleague", sportId: "basketball", name: "EuroLeague", country: "Europe", tier: 1 },
+
+  { id: "nhl", sportId: "hockey", name: "NHL", country: "USA / Canada", tier: 1 },
+  { id: "khl", sportId: "hockey", name: "KHL", country: "Europe", tier: 1 },
+
+  { id: "atp", sportId: "tennis", name: "ATP Tour", country: "World", tier: 1 },
+  { id: "wta", sportId: "tennis", name: "WTA Tour", country: "World", tier: 1 },
 ];
 
 export const TEAM_NAMES: Record<string, string[]> = {
-  "fb-metro": [
-    "Northbridge United", "Ashford Town", "Greywater Athletic", "Kelmsley Rovers",
-    "Fenwick City", "Redcliffe FC", "Larkspur Albion", "Draymoor United",
-    "Sutton Vale", "Millbrook Wanderers", "Copperfield FC", "Harrow Dynamo",
+  epl: [
+    "Arsenal", "Chelsea", "Liverpool", "Manchester City", "Manchester United", "Tottenham Hotspur",
+    "Newcastle United", "Aston Villa", "West Ham United", "Brighton & Hove Albion", "Everton", "Fulham",
   ],
-  "fb-iberia": [
-    "Real Solano", "Valdemar CF", "Atletico Bruma", "Costa Nera",
-    "Deportivo Aznar", "Sevilla Roja", "Marejada FC", "Union Pinares",
+  champ: [
+    "Leicester City", "Leeds United", "Southampton", "West Bromwich Albion", "Norwich City", "Middlesbrough",
+    "Sunderland", "Coventry City", "Hull City", "Watford",
   ],
-  "fb-alpine": [
-    "Juventina", "AC Marendola", "Lazzurri Roma", "Milano Nord",
-    "Torino Vecchia", "Napoli Sud FC", "Bergamo Calcio", "Firenze United",
+  l1: [
+    "Portsmouth", "Bolton Wanderers", "Derby County", "Peterborough United", "Barnsley", "Charlton Athletic",
+    "Wigan Athletic", "Blackpool",
   ],
-  "bb-national": [
-    "Portland Timberwolves", "Brooklyn Voltage", "Chicago Ironhawks", "Austin Comets",
-    "Denver Peaks", "Miami Riptide", "Phoenix Furnace", "Seattle Cascade",
+  laliga: [
+    "Real Madrid", "Barcelona", "Atletico Madrid", "Sevilla", "Real Sociedad", "Real Betis",
+    "Villarreal", "Athletic Bilbao", "Valencia", "Girona",
   ],
-  "bb-continental": [
-    "Madrid Estrellas", "Milano Falcons", "Berlin Bears", "Athens Titans",
-    "Belgrade Vipers", "Istanbul Sultans",
+  laliga2: [
+    "Levante", "Racing Santander", "Eibar", "Sporting Gijon", "Elche", "Albacete",
   ],
-  "hk-national": [
-    "Toronto Frost", "Montreal Rafales", "Minnesota Timberwolves HC", "Boston Anchors",
-    "Calgary Summit", "Detroit Forge", "Vancouver Tide", "Chicago Blackstone",
+  bundesliga: [
+    "Bayern Munich", "Borussia Dortmund", "RB Leipzig", "Bayer Leverkusen", "Eintracht Frankfurt",
+    "Wolfsburg", "Borussia Monchengladbach", "Freiburg",
   ],
-  "hk-continental": [
-    "Helsinki Polar", "Prague Talons", "Zurich Glaciers", "Moscow Steel",
-    "Stockholm Vikings HC", "Bratislava Wolves",
+  nba: [
+    "Los Angeles Lakers", "Boston Celtics", "Golden State Warriors", "Miami Heat", "Milwaukee Bucks",
+    "Denver Nuggets", "Phoenix Suns", "Dallas Mavericks", "Brooklyn Nets", "Philadelphia 76ers",
+  ],
+  euroleague: [
+    "Real Madrid Baloncesto", "FC Barcelona Basquet", "Panathinaikos", "Olympiacos", "Fenerbahce", "Anadolu Efes",
+  ],
+  nhl: [
+    "Toronto Maple Leafs", "Montreal Canadiens", "Boston Bruins", "New York Rangers", "Edmonton Oilers",
+    "Colorado Avalanche", "Vegas Golden Knights", "Tampa Bay Lightning",
+  ],
+  khl: [
+    "SKA Saint Petersburg", "CSKA Moscow", "Dynamo Moscow", "Ak Bars Kazan", "Metallurg Magnitogorsk", "Avangard Omsk",
   ],
 };
 
 export const PLAYER_NAMES: Record<string, string[]> = {
-  "tn-mens": [
+  atp: [
     "N. Kovalenko", "R. Dupont", "M. Ferreira", "J. Nakamura", "A. Petrov",
-    "L. Schmidt", "D. Alvarez", "T. Okafor", "S. Bergström", "K. Novak",
+    "L. Schmidt", "D. Alvarez", "T. Okafor", "S. Bergstrom", "K. Novak",
     "F. Rossi", "W. Chen",
   ],
-  "tn-womens": [
+  wta: [
     "E. Marchetti", "V. Sokolova", "H. Lindqvist", "C. Moreau", "P. Yamamoto",
     "G. Costa", "B. Wilhelm", "R. Osei", "N. Kwiatkowski", "S. Ibarra",
     "A. Novak", "M. Delacroix",
   ],
 };
 
-export const BOOKMAKERS = ["PinPoint", "Meridian Bet", "OddsForge", "Northgate", "Havenline"];
+export function competitionsForSport(sportId: SportId): Competition[] {
+  return COMPETITIONS.filter((c) => c.sportId === sportId);
+}
 
-export function leaguesForSport(sportId: SportId): League[] {
-  return LEAGUES.filter((l) => l.sportId === sportId);
+export function competitionsByCountry(sportId: SportId): { country: string; competitions: Competition[] }[] {
+  const list = competitionsForSport(sportId);
+  const map = new Map<string, Competition[]>();
+  for (const c of list) {
+    const arr = map.get(c.country) ?? [];
+    arr.push(c);
+    map.set(c.country, arr);
+  }
+  return Array.from(map.entries()).map(([country, competitions]) => ({ country, competitions }));
 }
