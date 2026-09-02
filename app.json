@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Lotif",
-    "slug": "lotif",
-    "scheme": "lotif",
+    "name": "Tooney",
+    "slug": "tooney",
+    "scheme": "tooney",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
